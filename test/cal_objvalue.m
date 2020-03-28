@@ -3,7 +3,7 @@
 %输出变量：p的倒数值
 % 一行一行解决p值计算，取p的最小值
 %生成可以计算p值的3*n数组
-function [objvalue,p,pop] = cal_objvalue(pop,px_tx,tx,size_A,size_B)
+function [objvalue] = cal_objvalue(pop,px_tx,tx)
 clear C;
 [px_pop,py_pop] = size(pop);
 for i3=1:px_pop
@@ -44,35 +44,11 @@ for i3=1:px_pop
         end
     end
     %     对变量个数进行回调防止早熟
-    if sum>15
-        pop(i3,:)=0;
-        %          这里回调为三个
-        amount=round(1+(2).*rand);
-        for i=1:amount
-            %                 这里随机的是回调后重新生成的特征的位置
-            m=round(1+(py_pop-1).*rand) ;
-            pop(i3,m)=1;
-        end
-    end
     %      控制不符合条件的基因不会被输出
-    if row_B<size_B
-        %确定A，B数组值域
-        yanzheng=1;
-        %         建立p值计算所需要的数组
-    else [TimeVar_B,EventVar_B,GroupVar_B] = setvar(B);
-    end
+ [TimeVar_B,EventVar_B,GroupVar_B] = setvar(B);
     %     控制不符合条件的基因不会被输出
-    if yanzheng==1
-        C(i3,1)=0;
-    else
-        C(i3,1)=1/Calculate_P(TimeVar_B,EventVar_B,GroupVar_B);
-    end
+    C(i3,1)=Calculate_P(TimeVar_B,EventVar_B,GroupVar_B);
     % 控制不符合条件的基因不会被输出与保存
-    if yanzheng==1
-        p(i3,1)=0;
-    else
-        p(i3,1)=Calculate_P(TimeVar_B,EventVar_B,GroupVar_B);
-    end
     %防止AB数组被保留，干扰结果
     clear A B ;
 end

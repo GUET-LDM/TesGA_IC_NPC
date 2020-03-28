@@ -10,8 +10,8 @@ tx=xlsread('tx.xlsx');
 [px_tx,py_tx] = size(tx);
 % 读取tx数据库的大小
 % 为创建后面的种群做准备
-size_B=100;
-size_A=100;
+size_B=5;
+size_A=5;
 % 设置想要跑出来的模型的最小人数
 %种群大小
 popsize=200;
@@ -33,7 +33,7 @@ poptotal=zeros(1,chromlength);
 n=1;
 % 迭代循环
 % i为迭代次数
-for i = 1:100000
+for i = 1:1
     %计算适应度值（函数值）
     %利用p值的倒数作为适应度函数
     [fitvalue,p,pop] = cal_objvalue(pop,px_tx,tx,size_A,size_B);
@@ -53,27 +53,10 @@ for i = 1:100000
     newpop = mutation(newpop,pm);
     %更新种群
     pop = newpop;
-    %     计数观察迭代进程
-    i
-    fprintf('p为 %f\n',1/bestfit);
 end
- [poptotal,totalp] = pop_p_overlat(poptotal,totalp,chromlength);
- % 对于记录下来的基因进行去重
-[px_pop,py_pop] = size(poptotal);
-[px_p,py_p] = size(totalp);
-n=1;
-tx=xlsread('tx2.xlsx');
-[px_tx,py_tx] = size(tx);
-newtotalp(1,1)=0;
-newpoptotal=zeros(1,chromlength);
-    [fitvalue,p,poptotal] = cal_objvalue(poptotal,px_tx,tx,size_A,size_B);
-    [newtotalp,newpoptotal,n] = conserve(px_pop,poptotal,p,n,newtotalp,newpoptotal);
-
 % 生成Excel
 xlswrite('p.xlsx',totalp);
 xlswrite('pop.xlsx',poptotal);
-%对最优解画图
-% draw(pop,px_tx,tx);
 %对最优个体与最优解进行输出
 fprintf(' %d ',x);
 fprintf('\n最小的p为 --->>%f\n',1/bestfit);

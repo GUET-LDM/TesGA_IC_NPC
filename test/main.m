@@ -1,21 +1,14 @@
 clear;
 clc;
-delete('pop1.xlsx');
+% 删除上一次的数据
 delete('p1.xlsx');
+%读取表格
 poptotal=xlsread('pop.xlsx');
-totalp=xlsread('p.xlsx');
-size_A=0;
-size_B=0;
-[px_pop,py_pop] = size(poptotal);
-[px_p,py_p] = size(totalp);
-n=1;
 tx=xlsread('tx.xlsx');
+% 读取tx数据库的大小
+[px_pop,py_pop] = size(poptotal);
+% 为创建后面的种群做准备
 [px_tx,py_tx] = size(tx);
-newtotalp(1,1)=0;
-newpoptotal=zeros(1,py_pop);
-    [fitvalue,p,poptotal] = cal_objvalue(poptotal,px_tx,tx,size_A,size_B);
-    [newtotalp,newpoptotal,n] = conserve(px_pop,poptotal,p,n,newtotalp,newpoptotal);
-
+[fitvalue] = cal_objvalue(poptotal,px_tx,tx);
 % 生成Excel
-xlswrite('p1.xlsx',newtotalp);
-xlswrite('pop1.xlsx',newpoptotal);
+xlswrite('p1.xlsx',fitvalue);
