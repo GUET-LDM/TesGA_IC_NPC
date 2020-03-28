@@ -1,4 +1,5 @@
 function [TimeVar,EventVar,GroupVar,daxiao] = setvar(A)
+% 准备输入格式
 [tx,ty]=size(A);
 t1=1;
 e1=1;

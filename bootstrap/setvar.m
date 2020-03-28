@@ -1,4 +1,4 @@
-function [TimeVar,EventVar,GroupVar,daxiao] = setvar(A)
+function [TimeVar,EventVar,GroupVar,a1,a2] = setvar(A)
 [tx,ty]=size(A);
 t1=1;
 e1=1;

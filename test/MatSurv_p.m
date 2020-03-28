@@ -1,4 +1,4 @@
-function [varargout] = MatSurv(TimeVar, EventVar, GroupVar, varargin)
+function [p,stats] = MatSurv_p(TimeVar, EventVar, GroupVar, varargin)
 % USAGE:
 %   MatSurv(TimeVar, EventVar, GroupVar,'param', value, ...) creates a Kaplan-Meier plot,
 %   a risk table and calculates a log rank p-value
@@ -275,266 +275,266 @@ end
 
 % Do log rank test
 [p,stats] = MatSurvLogRank(DATA);
-
-if options.PairWiseP
-    counter = 0;
-    stats.ParwiseName = cell(DATA.numGroups * (DATA.numGroups - 1) / 2,1);
-    for i = 1:DATA.numGroups - 1
-        for j = i+1:DATA.numGroups
-            counter  = counter + 1;
-            DATA_tmp.numGroups = 2;
-            DATA_tmp.GROUPS(1) = DATA.GROUPS(i);
-            DATA_tmp.GROUPS(2) = DATA.GROUPS(j);
-            [~,stats.ParwiseStats(counter)] = MatSurvLogRank(DATA_tmp);
-            stats.ParwiseName{counter} = sprintf('%s vs. %s',DATA.GROUPS(i).GroupName{1},DATA.GROUPS(j).GroupName{1});
-        end
-    end
-end
-
-% Calculate median survival time if no plot is created
-if options.NoPlot
-    stats.MedianSurvivalTime=ones(DATA.numGroups,1) * NaN;
-    for i=1:DATA.numGroups
-        [xb,yb] = stairs(DATA.GROUPS(i).KM_ALL(:,1),DATA.GROUPS(i).KM_ALL(:,2));
-        % Calculate Median Survival time:
-        indx_MST = find((yb <= 0.5),1);
-        if ~isempty(indx_MST)
-            stats.MedianSurvivalTime(i) = xb(indx_MST);
-        end
-    end
-    fh = [];
-    
-else % Creat KM-Plot
-    
-    % Create Figure Window
-    fh=figure('Name','MatSurv KM-Plot','Color','w','Tag','MatSurv KM-Plot figure');
-    
-    %Create Axes
-    if options.NoRiskTable
-        axh_KM = axes(fh,'NextPlot','add','tag','KM-Plot');
-    else
-        axh_KM = axes(fh,'Position',options.KM_position,'NextPlot','add','tag','KM-Plot');
-        axh_RT = axes(fh,'Position',options.RT_position,'tag','Risk Table');
-        % No axis for the Risk Table
-        axh_RT.XAxis.Visible='off';
-        axh_RT.YAxis.Visible='off';
-    end
-    
-    % Adjust Colors for user input
-    if ischar(options.LineColor)
-        if any(strcmpi(options.LineColor,{'JCO','nejm','Lancet','Science','Nature','aeb01'}))
-            cMAP = GetMatSurvColorPalette(options.LineColor);
-        else
-            cMAP = feval(options.LineColor, DATA.numGroups);
-        end
-    elseif ismatrix(options.LineColor)
-        cMAP = options.LineColor;
-        cMAP = cMAP(1:DATA.numGroups,:);
-    else
-        cMAP = GetMatSurvColorPalette;
-    end
-    
-    if options.FlipColorOrder
-        cMAP = flipud(cMAP);
-    end
-    
-    % Adjust line style
-    if ischar(options.LineStyle)
-        LineStyles = cell(DATA.numGroups,1);
-        LineStyles(:) = {options.LineStyle};
-    elseif numel(options.LineStyle) == 1
-        LineStyles = cell(DATA.numGroups,1);
-        LineStyles(:) = options.LineStyle;
-    elseif iscell(options.LineStyle)
-        LineStyles = options.LineStyle;
-    end
-    
-    % Adjust censoring markers
-    if ischar(options.CensorLineColor) && strcmpi('same',options.CensorLineColor)
-        cMAPCensor = cMAP;
-    elseif ismatrix(options.CensorLineColor)
-        cMAPCensor = options.CensorLineColor;
-    end
-    
-    % Create stairs
-    S=gobjects(DATA.numGroups,1);
-    stats.MedianSurvivalTime=ones(DATA.numGroups,1) * NaN;
-    for i=1:DATA.numGroups
-        S(i)=stairs(axh_KM,DATA.GROUPS(i).KM_ALL(:,1),DATA.GROUPS(i).KM_ALL(:,2),'Color',cMAP(i,:),'Linewidth',options.LineWidth,'LineStyle',LineStyles{i});
-        % Calculate Median Survival time:
-        indx_MST = find((S(i).YData <= 0.5),1);
-        if ~isempty(indx_MST)
-            stats.MedianSurvivalTime(i) = S(i).XData(indx_MST);
-            if options.DrawMSL
-                line(axh_KM,[stats.MedianSurvivalTime(i) stats.MedianSurvivalTime(i)], [0.5 0],'LineStyle','--','Linewidth',1.5,'Color','k');
-                line(axh_KM,[0 stats.MedianSurvivalTime(i)], [0.5 0.5],'LineStyle','--','Linewidth',1.5,'Color','k');
-            end
-        end
-        if ~isempty(DATA.GROUPS(i).Censored_Points)
-            % Draw marks for censored points
-            line(axh_KM,[DATA.GROUPS(i).Censored_Points(:,1)'; DATA.GROUPS(i).Censored_Points(:,1)'],...
-                [DATA.GROUPS(i).Censored_Points(:,2)'-options.CensorLineLength ; DATA.GROUPS(i).Censored_Points(:,2)'+options.CensorLineLength],...
-                'Color',cMAPCensor(i,:),'Linewidth',options.CensorLineWidth);
-        end
-    end
-    
-    %Fix Y-Axis
-    % Limit range from 0 to 1
-    axh_KM.YLim = [0 1];
-    axh_KM.YTick = options.YTick;
-    YMinorStep =  (options.YTick(2) - options.YTick(1) ) / (1+options.YMinorTick);
-    axh_KM.YAxis.MinorTickValues = YMinorStep:YMinorStep:1;
-    axh_KM.YAxis.MinorTick = 'on';
-    axh_KM.YAxis.TickDirection = 'out';
-    
-    % Y label
-    axh_KM.YAxis.FontSize=options.BaseFontSize + options.YTickFontSize;
-    ylabel(axh_KM,options.Ylabel,'FontSize',options.BaseFontSize + options.YLabelFontSize,options.YlabelOptions{:});
-    
-    % X label
-    axh_KM.XAxis.FontSize=options.BaseFontSize + options.XTickFontSize;
-    if isempty(options.Xlabel)
-        xlabel_str = sprintf('Time (%s)',options.TimeUnit);
-    else
-        xlabel_str = options.Xlabel;
-    end
-    xlabel(axh_KM,xlabel_str,'FontSize',options.BaseFontSize + options.XLabelFontSize,options.XlabelOptions{:});
-    axh_KM.XAxis.TickDirection = 'out';
-    
-    % Title
-    if ~isempty(options.Title)
-        title(axh_KM,options.Title,'FontSize',18,options.TitleOptions{:});
-    end
-    
-    % Set legend
-    h_LE=legend(S,[DATA.GROUPS(:).GroupName]);
-    h_LE.Box='off';
-    title(h_LE,DATA.GroupType);
-    h_LE.FontSize=options.BaseFontSize + options.LegendFontSize;
-    
-    % Get Xticks
-    if ~isempty(options.XLim)
-        axh_KM.XLim = [0 options.XLim];
-    end
-    
-    max_X = axh_KM.XLim(2);
-    Nudge_X = max_X / 50;
-    
-    if ~isempty(options.Xstep)
-        axh_KM.XTick = 0:options.Xstep:max_X;
-    end
-    if ~isempty(options.XTicks)
-        axh_KM.XTick = options.XTicks;
-    end
-    axh_KM.XAxis.MinorTick = 'on';
-    XMinorStep =  (axh_KM.XTick(2) - axh_KM.XTick(1) ) / (1+options.XMinorTick);
-    axh_KM.XAxis.MinorTickValues = XMinorStep:XMinorStep:axh_KM.XTick(end);
-    axh_KM.LineWidth = 1.5;
-    
-    if options.DispP
-        txt_str(1) = {sprintf('p = %.3g',p)};
-        if options.DispHR
-            if ~options.Use_HR_MH
-                if options.InvHR
-                    txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_logrank_Inv, stats.HR_95_CI_logrank_Inv(1), stats.HR_95_CI_logrank_Inv(2))};
-                else
-                    txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_logrank, stats.HR_95_CI_logrank(1), stats.HR_95_CI_logrank(2))};
-                end
-                
-            else
-                if options.InvHR
-                    txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_MH_Inv, stats.HR_95_CI_MH_Inv(1), stats.HR_95_CI_MH_Inv(2))};
-                else
-                    txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_MH, stats.HR_95_CI_MH(1), stats.HR_95_CI_MH(2))};
-                end
-            end
-        end
-        text(axh_KM,Nudge_X,0.1,txt_str,'FontSize',options.BaseFontSize + options.PvalFontSize,'tag','p-value')
-    end
-    
-    % And now to the Risk table
-    if ~options.NoRiskTable
-        axh_RT.XTick=axh_KM.XTick;
-        % Get number of samples for each time point
-        RT_X = zeros(length(axh_KM.XTick),DATA.numGroups);
-        for i = 1:length(axh_KM.XTick)
-            for j = 1:DATA.numGroups
-                %RT_X(i,j) = sum(DATA.GROUPS(j).TimeVar > axh_KM.XTick(i) & DATA.GROUPS(j).EventVar == 1) + sum(DATA.GROUPS(j).TimeVar >= axh_KM.XTick(i) & DATA.GROUPS(j).EventVar == 0);
-                RT_X(i,j) = sum(DATA.GROUPS(j).TimeVar >= axh_KM.XTick(i));
-            end
-            
-        end
-        axh_RT.YLim = [0.5 DATA.numGroups + 0.5];
-        axh_RT.YTick = 1:DATA.numGroups;
-        linkaxes([axh_RT,axh_KM],'x')
-        
-        % Color OptionsFor Risk Table
-        if ischar(options.RT_Color) && strcmpi('same',options.RT_Color)
-            cMAP_RT = cMAP;
-        elseif ismatrix(options.RT_Color)
-            cMAP_RT = options.RT_Color;
-            cMAP_RT = repmat(cMAP_RT,DATA.numGroups,1);
-        end
-        
-        for i = 1:length(axh_KM.XTick)
-            for j = 1:DATA.numGroups
-                %sprintf('%u',RT_X(i,j))
-                text(axh_RT,axh_RT.XTick(i),axh_RT.YTick(end-j+1),sprintf('%u',RT_X(i,j)),...
-                    'HorizontalAlignment','center','VerticalAlignment','middle',...
-                    'FontSize',options.BaseFontSize + options.RT_FontSize,'Color',cMAP_RT(j,:))
-            end
-        end
-        % Create Line
-        %Get position for all text objects
-        txt_pos = [axh_RT.Children(2:end).Extent];
-        %get the second element for all text objects
-        left_pos = min(txt_pos(1:4:end));
-        nudge_x = abs(axh_RT.XLim(2) - axh_RT.XLim(1))/100;
-        
-        line(axh_RT,[left_pos-nudge_x left_pos-nudge_x],[axh_RT.YTick(1)-0.5 axh_RT.YTick(end)+0.5],'color','k','clipping','off','LineWidth',1.25)
-        
-        
-        %Set Y label for risk table
-        if options.RT_YLabel
-            for j = 1:DATA.numGroups
-                text(axh_RT,left_pos-(nudge_x*2),axh_RT.YTick(end-j+1),DATA.GROUPS(j).GroupName,...
-                    'HorizontalAlignment','right','VerticalAlignment','middle',...
-                    'FontSize',options.BaseFontSize + options.RT_FontSize,'Color',cMAP_RT(j,:),'FontWeight','bold')
-            end
-        end
-        % Title
-        if ~isempty(options.RT_Title)
-            ht = title(axh_RT,options.RT_Title,'FontSize',14,options.TitleOptions{:});
-            ht.VerticalAlignment='middle';
-        end
-    end
-end
-
-if options.Print
-    fprintf('\n')
-    fprintf('p = %.3g\n',stats.p_MC)
-    if options.CalcHR
-        if options.InvHR
-            fprintf('HR = %.3g (%.3g - %.3g)\n',stats.HR_logrank_Inv, stats.HR_95_CI_logrank_Inv(1), stats.HR_95_CI_logrank_Inv(2));
-        else
-            fprintf('HR = %.3g (%.3g - %.3g)\n',stats.HR_logrank, stats.HR_95_CI_logrank(1), stats.HR_95_CI_logrank(2));
-        end
-    end
-    for i = 1: DATA.numGroups
-        fprintf('Median Survival Time: (%s) = %g\n',stats.GroupNames{i},stats.MedianSurvivalTime(i))
-    end
-    fprintf('\n')
-end
-% Define output variables dependent of varargout
-if nargout > 0
-    varargout{1} = p;
-end
-if nargout > 1
-    varargout{2} = fh;
-end
-if nargout > 2
-    varargout{3} = stats;
-end
+% 
+% if options.PairWiseP
+%     counter = 0;
+%     stats.ParwiseName = cell(DATA.numGroups * (DATA.numGroups - 1) / 2,1);
+%     for i = 1:DATA.numGroups - 1
+%         for j = i+1:DATA.numGroups
+%             counter  = counter + 1;
+%             DATA_tmp.numGroups = 2;
+%             DATA_tmp.GROUPS(1) = DATA.GROUPS(i);
+%             DATA_tmp.GROUPS(2) = DATA.GROUPS(j);
+%             [~,stats.ParwiseStats(counter)] = MatSurvLogRank(DATA_tmp);
+%             stats.ParwiseName{counter} = sprintf('%s vs. %s',DATA.GROUPS(i).GroupName{1},DATA.GROUPS(j).GroupName{1});
+%         end
+%     end
+% end
+% 
+% % Calculate median survival time if no plot is created
+% if options.NoPlot
+%     stats.MedianSurvivalTime=ones(DATA.numGroups,1) * NaN;
+%     for i=1:DATA.numGroups
+%         [xb,yb] = stairs(DATA.GROUPS(i).KM_ALL(:,1),DATA.GROUPS(i).KM_ALL(:,2));
+%         % Calculate Median Survival time:
+%         indx_MST = find((yb <= 0.5),1);
+%         if ~isempty(indx_MST)
+%             stats.MedianSurvivalTime(i) = xb(indx_MST);
+%         end
+%     end
+%     fh = [];
+%     
+% else % Creat KM-Plot
+%     
+%     % Create Figure Window
+%     fh=figure('Name','MatSurv KM-Plot','Color','w','Tag','MatSurv KM-Plot figure');
+%     
+%     %Create Axes
+%     if options.NoRiskTable
+%         axh_KM = axes(fh,'NextPlot','add','tag','KM-Plot');
+%     else
+%         axh_KM = axes(fh,'Position',options.KM_position,'NextPlot','add','tag','KM-Plot');
+%         axh_RT = axes(fh,'Position',options.RT_position,'tag','Risk Table');
+%         % No axis for the Risk Table
+%         axh_RT.XAxis.Visible='off';
+%         axh_RT.YAxis.Visible='off';
+%     end
+%     
+%     % Adjust Colors for user input
+%     if ischar(options.LineColor)
+%         if any(strcmpi(options.LineColor,{'JCO','nejm','Lancet','Science','Nature','aeb01'}))
+%             cMAP = GetMatSurvColorPalette(options.LineColor);
+%         else
+%             cMAP = feval(options.LineColor, DATA.numGroups);
+%         end
+%     elseif ismatrix(options.LineColor)
+%         cMAP = options.LineColor;
+%         cMAP = cMAP(1:DATA.numGroups,:);
+%     else
+%         cMAP = GetMatSurvColorPalette;
+%     end
+%     
+%     if options.FlipColorOrder
+%         cMAP = flipud(cMAP);
+%     end
+%     
+%     % Adjust line style
+%     if ischar(options.LineStyle)
+%         LineStyles = cell(DATA.numGroups,1);
+%         LineStyles(:) = {options.LineStyle};
+%     elseif numel(options.LineStyle) == 1
+%         LineStyles = cell(DATA.numGroups,1);
+%         LineStyles(:) = options.LineStyle;
+%     elseif iscell(options.LineStyle)
+%         LineStyles = options.LineStyle;
+%     end
+%     
+%     % Adjust censoring markers
+%     if ischar(options.CensorLineColor) && strcmpi('same',options.CensorLineColor)
+%         cMAPCensor = cMAP;
+%     elseif ismatrix(options.CensorLineColor)
+%         cMAPCensor = options.CensorLineColor;
+%     end
+%     
+%     % Create stairs
+%     S=gobjects(DATA.numGroups,1);
+%     stats.MedianSurvivalTime=ones(DATA.numGroups,1) * NaN;
+%     for i=1:DATA.numGroups
+%         S(i)=stairs(axh_KM,DATA.GROUPS(i).KM_ALL(:,1),DATA.GROUPS(i).KM_ALL(:,2),'Color',cMAP(i,:),'Linewidth',options.LineWidth,'LineStyle',LineStyles{i});
+%         % Calculate Median Survival time:
+%         indx_MST = find((S(i).YData <= 0.5),1);
+%         if ~isempty(indx_MST)
+%             stats.MedianSurvivalTime(i) = S(i).XData(indx_MST);
+%             if options.DrawMSL
+%                 line(axh_KM,[stats.MedianSurvivalTime(i) stats.MedianSurvivalTime(i)], [0.5 0],'LineStyle','--','Linewidth',1.5,'Color','k');
+%                 line(axh_KM,[0 stats.MedianSurvivalTime(i)], [0.5 0.5],'LineStyle','--','Linewidth',1.5,'Color','k');
+%             end
+%         end
+%         if ~isempty(DATA.GROUPS(i).Censored_Points)
+%             % Draw marks for censored points
+%             line(axh_KM,[DATA.GROUPS(i).Censored_Points(:,1)'; DATA.GROUPS(i).Censored_Points(:,1)'],...
+%                 [DATA.GROUPS(i).Censored_Points(:,2)'-options.CensorLineLength ; DATA.GROUPS(i).Censored_Points(:,2)'+options.CensorLineLength],...
+%                 'Color',cMAPCensor(i,:),'Linewidth',options.CensorLineWidth);
+%         end
+%     end
+%     
+%     %Fix Y-Axis
+%     % Limit range from 0 to 1
+%     axh_KM.YLim = [0 1];
+%     axh_KM.YTick = options.YTick;
+%     YMinorStep =  (options.YTick(2) - options.YTick(1) ) / (1+options.YMinorTick);
+%     axh_KM.YAxis.MinorTickValues = YMinorStep:YMinorStep:1;
+%     axh_KM.YAxis.MinorTick = 'on';
+%     axh_KM.YAxis.TickDirection = 'out';
+%     
+%     % Y label
+%     axh_KM.YAxis.FontSize=options.BaseFontSize + options.YTickFontSize;
+%     ylabel(axh_KM,options.Ylabel,'FontSize',options.BaseFontSize + options.YLabelFontSize,options.YlabelOptions{:});
+%     
+%     % X label
+%     axh_KM.XAxis.FontSize=options.BaseFontSize + options.XTickFontSize;
+%     if isempty(options.Xlabel)
+%         xlabel_str = sprintf('Time (%s)',options.TimeUnit);
+%     else
+%         xlabel_str = options.Xlabel;
+%     end
+%     xlabel(axh_KM,xlabel_str,'FontSize',options.BaseFontSize + options.XLabelFontSize,options.XlabelOptions{:});
+%     axh_KM.XAxis.TickDirection = 'out';
+%     
+%     % Title
+%     if ~isempty(options.Title)
+%         title(axh_KM,options.Title,'FontSize',18,options.TitleOptions{:});
+%     end
+%     
+%     % Set legend
+%     h_LE=legend(S,[DATA.GROUPS(:).GroupName]);
+%     h_LE.Box='off';
+%     title(h_LE,DATA.GroupType);
+%     h_LE.FontSize=options.BaseFontSize + options.LegendFontSize;
+%     
+%     % Get Xticks
+%     if ~isempty(options.XLim)
+%         axh_KM.XLim = [0 options.XLim];
+%     end
+%     
+%     max_X = axh_KM.XLim(2);
+%     Nudge_X = max_X / 50;
+%     
+%     if ~isempty(options.Xstep)
+%         axh_KM.XTick = 0:options.Xstep:max_X;
+%     end
+%     if ~isempty(options.XTicks)
+%         axh_KM.XTick = options.XTicks;
+%     end
+%     axh_KM.XAxis.MinorTick = 'on';
+%     XMinorStep =  (axh_KM.XTick(2) - axh_KM.XTick(1) ) / (1+options.XMinorTick);
+%     axh_KM.XAxis.MinorTickValues = XMinorStep:XMinorStep:axh_KM.XTick(end);
+%     axh_KM.LineWidth = 1.5;
+%     
+%     if options.DispP
+%         txt_str(1) = {sprintf('p = %.3g',p)};
+%         if options.DispHR
+%             if ~options.Use_HR_MH
+%                 if options.InvHR
+%                     txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_logrank_Inv, stats.HR_95_CI_logrank_Inv(1), stats.HR_95_CI_logrank_Inv(2))};
+%                 else
+%                     txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_logrank, stats.HR_95_CI_logrank(1), stats.HR_95_CI_logrank(2))};
+%                 end
+%                 
+%             else
+%                 if options.InvHR
+%                     txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_MH_Inv, stats.HR_95_CI_MH_Inv(1), stats.HR_95_CI_MH_Inv(2))};
+%                 else
+%                     txt_str(2) = {sprintf('HR = %.3g (%.3g - %.3g)',stats.HR_MH, stats.HR_95_CI_MH(1), stats.HR_95_CI_MH(2))};
+%                 end
+%             end
+%         end
+%         text(axh_KM,Nudge_X,0.1,txt_str,'FontSize',options.BaseFontSize + options.PvalFontSize,'tag','p-value')
+%     end
+%     
+%     % And now to the Risk table
+%     if ~options.NoRiskTable
+%         axh_RT.XTick=axh_KM.XTick;
+%         % Get number of samples for each time point
+%         RT_X = zeros(length(axh_KM.XTick),DATA.numGroups);
+%         for i = 1:length(axh_KM.XTick)
+%             for j = 1:DATA.numGroups
+%                 %RT_X(i,j) = sum(DATA.GROUPS(j).TimeVar > axh_KM.XTick(i) & DATA.GROUPS(j).EventVar == 1) + sum(DATA.GROUPS(j).TimeVar >= axh_KM.XTick(i) & DATA.GROUPS(j).EventVar == 0);
+%                 RT_X(i,j) = sum(DATA.GROUPS(j).TimeVar >= axh_KM.XTick(i));
+%             end
+%             
+%         end
+%         axh_RT.YLim = [0.5 DATA.numGroups + 0.5];
+%         axh_RT.YTick = 1:DATA.numGroups;
+%         linkaxes([axh_RT,axh_KM],'x')
+%         
+%         % Color OptionsFor Risk Table
+%         if ischar(options.RT_Color) && strcmpi('same',options.RT_Color)
+%             cMAP_RT = cMAP;
+%         elseif ismatrix(options.RT_Color)
+%             cMAP_RT = options.RT_Color;
+%             cMAP_RT = repmat(cMAP_RT,DATA.numGroups,1);
+%         end
+%         
+%         for i = 1:length(axh_KM.XTick)
+%             for j = 1:DATA.numGroups
+%                 %sprintf('%u',RT_X(i,j))
+%                 text(axh_RT,axh_RT.XTick(i),axh_RT.YTick(end-j+1),sprintf('%u',RT_X(i,j)),...
+%                     'HorizontalAlignment','center','VerticalAlignment','middle',...
+%                     'FontSize',options.BaseFontSize + options.RT_FontSize,'Color',cMAP_RT(j,:))
+%             end
+%         end
+%         % Create Line
+%         %Get position for all text objects
+%         txt_pos = [axh_RT.Children(2:end).Extent];
+%         %get the second element for all text objects
+%         left_pos = min(txt_pos(1:4:end));
+%         nudge_x = abs(axh_RT.XLim(2) - axh_RT.XLim(1))/100;
+%         
+%         line(axh_RT,[left_pos-nudge_x left_pos-nudge_x],[axh_RT.YTick(1)-0.5 axh_RT.YTick(end)+0.5],'color','k','clipping','off','LineWidth',1.25)
+%         
+%         
+%         %Set Y label for risk table
+%         if options.RT_YLabel
+%             for j = 1:DATA.numGroups
+%                 text(axh_RT,left_pos-(nudge_x*2),axh_RT.YTick(end-j+1),DATA.GROUPS(j).GroupName,...
+%                     'HorizontalAlignment','right','VerticalAlignment','middle',...
+%                     'FontSize',options.BaseFontSize + options.RT_FontSize,'Color',cMAP_RT(j,:),'FontWeight','bold')
+%             end
+%         end
+%         % Title
+%         if ~isempty(options.RT_Title)
+%             ht = title(axh_RT,options.RT_Title,'FontSize',14,options.TitleOptions{:});
+%             ht.VerticalAlignment='middle';
+%         end
+%     end
+% end
+% 
+% if options.Print
+%     fprintf('\n')
+%     fprintf('p = %.3g\n',stats.p_MC)
+%     if options.CalcHR
+%         if options.InvHR
+%             fprintf('HR = %.3g (%.3g - %.3g)\n',stats.HR_logrank_Inv, stats.HR_95_CI_logrank_Inv(1), stats.HR_95_CI_logrank_Inv(2));
+%         else
+%             fprintf('HR = %.3g (%.3g - %.3g)\n',stats.HR_logrank, stats.HR_95_CI_logrank(1), stats.HR_95_CI_logrank(2));
+%         end
+%     end
+%     for i = 1: DATA.numGroups
+%         fprintf('Median Survival Time: (%s) = %g\n',stats.GroupNames{i},stats.MedianSurvivalTime(i))
+%     end
+%     fprintf('\n')
+% end
+% % Define output variables dependent of varargout
+% if nargout > 0
+%     varargout{1} = p;
+% end
+% if nargout > 1
+%     varargout{2} = fh;
+% end
+% if nargout > 2
+%     varargout{3} = stats;
+% end
 
 end
 

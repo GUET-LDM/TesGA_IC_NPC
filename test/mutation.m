@@ -6,14 +6,14 @@ function [newpop] = mutation(pop,pm)
 [px,py] = size(pop);
 %保留最大与第二大的个体
 for i = 3:px
-    for i1=1:py
-        %根据pm值变异其他位
     if(rand<pm)
-        if pop(i,i1)==1
-            pop(i,i1)=0;
-        else pop(i,i1)=1;
+%   对任意一位进行变异      
+        if pop(i,1+round((py-1).*rand))==0
+            pop(i,1+round((py-1).*rand))=1;
         end
-    end
+        if pop(i,1+round((py-1).*rand))==1
+            pop(i,1+round((py-1).*rand))=0;
+        end
     end
 end
 %更新种群

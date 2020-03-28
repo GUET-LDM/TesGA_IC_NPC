@@ -1,13 +1,12 @@
-%计算函数目标值
+
 %输入变量：两组病人的数据
-%输出变量：p的倒数值
+%输出变量：A，B数组生存曲线
 % 一行一行解决p值计算，取p的最小值
 %生成可以计算p值的3*n数组
-function [objvalue] = cal_objvalue(pop,px_tx,tx,size_A,size_B)
+function [x] = draw(pop,px_tx,tx)
 clear C;
 [px_pop,py_pop] = size(pop);
-for i3=1:px_pop
-     yanzheng=0;
+for i3=1:1
     %对pop种群进行计算
     row_A=1;
     row_B=1;
@@ -43,24 +42,13 @@ for i3=1:px_pop
             end
         end
     end
-    if row_B<size_B
-       %确定A，B数组值域
-        yanzheng=1;
-    else [TimeVar_B,EventVar_B,GroupVar_B] = setvar(B);
-    end
-    if row_A<size_A
-        %确定A，B数组值域
-        yanzheng=1;
-    else [TimeVar_A,EventVar_A,GroupVar_A] = setvar(A);
-    end
-    if yanzheng==1
-        C(i3,1)=0;
-    else if Calculate_P(TimeVar_A,EventVar_A,GroupVar_A)>Calculate_P(TimeVar_B,EventVar_B,GroupVar_B)
-            C(i3,1)=1/Calculate_P(TimeVar_B,EventVar_B,GroupVar_B);
-        else C(i3,1)=1/Calculate_P(TimeVar_A,EventVar_A,GroupVar_A);           
-        end
-    end
-        clear A B ;
-end    
-objvalue= C;
+    [TimeVar_B,EventVar_B,GroupVar_B]= setvar(B);
+    [TimeVar_A,EventVar_A,GroupVar_A] = setvar(A);
+    [p]=MatSurv(TimeVar_A,EventVar_A, GroupVar_A)
+    [p]=MatSurv(TimeVar_B,EventVar_B, GroupVar_B)
+    %计算AB数组的较小p值并赋值到C中
+    clear A B ;
+    %防止AB数组被保留
+end
+
 end
